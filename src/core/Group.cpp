@@ -46,6 +46,7 @@ Group::Group()
     m_data.autoTypeEnabled = Inherit;
     m_data.searchingEnabled = Inherit;
     m_data.mergeMode = Default;
+    m_data.excludeFromReports = false;
 
     connect(m_customData, &CustomData::modified, this, &Group::modified);
     connect(this, &Group::modified, this, &Group::updateTimeinfo);
@@ -1281,6 +1282,16 @@ void Group::setPreviousParentGroup(const Group* group)
     setPreviousParentGroupUuid(group ? group->uuid() : QUuid());
 }
 
+void Group::setExcludeFromReports(bool excluded)
+{
+    set(m_data.excludeFromReports, excluded);
+}
+
+bool Group::excludeFromReports() const
+{
+    return m_data.excludeFromReports;
+}
+
 bool Group::GroupData::operator==(const Group::GroupData& other) const
 {
     return equals(other, CompareItemDefault);
@@ -1325,6 +1336,9 @@ bool Group::GroupData::equals(const Group::GroupData& other, CompareItemOptions 
         return false;
     }
     if (::compare(mergeMode, other.mergeMode, options) != 0) {
+        return false;
+    }
+    if (::compare(excludeFromReports, other.excludeFromReports, options) != 0) {
         return false;
     }
     return true;
