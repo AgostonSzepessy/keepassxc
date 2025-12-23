@@ -169,9 +169,7 @@ void ReportsWidgetHibp::makeHibpTable()
 
         if (entry->excludeFromReports()) {
             row[1]->setToolTip(tr("This entry is being excluded from reports"));
-        }
-
-        if(entry->group()->excludeFromReports()) {
+        } else if(entry->group()->excludeFromReports()) {
             row[1]->setToolTip(tr("The group for this entry is being excluded from reports"));
         }
 

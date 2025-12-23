@@ -219,7 +219,12 @@ void ReportsWidgetHealthcheck::addHealthRow(QSharedPointer<PasswordHealth> healt
     // Set tooltips
     row[0]->setToolTip(tip);
     if (excluded) {
-        row[1]->setToolTip(tr("This entry is being excluded from reports"));
+        if (group->excludeFromReports()) {
+            row[1]->setToolTip(tr("The group for this entry is being excluded from reports"));
+        }
+        else {
+            row[1]->setToolTip(tr("This entry is being excluded from reports"));
+        }
     }
     row[4]->setToolTip(health->scoreDetails());
 

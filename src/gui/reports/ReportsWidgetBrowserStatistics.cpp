@@ -159,7 +159,11 @@ void ReportsWidgetBrowserStatistics::addStatisticsRow(bool hasUrls,
     row[3]->setToolTip(allowedUrlsToolTip);
     row[4]->setToolTip(deniedUrlsToolTip);
     if (excluded) {
-        row[0]->setToolTip(tr("This entry is being excluded from reports"));
+        if (group->excludeFromReports()) {
+            row[0]->setToolTip(tr("The group for this entry is being excluded from reports"));
+        } else {
+            row[0]->setToolTip(tr("This entry is being excluded from reports"));
+        }
     }
 
     // Store entry pointer per table row (used in double click handler)
