@@ -153,7 +153,7 @@ void ReportsWidgetHibp::makeHibpTable()
         auto title = entry->title();
 
         // Hide entry if excluded unless explicitly requested
-        if (entry->excludeFromReports()) {
+        if (entry->excludeFromReports() || entry->group()->excludeFromReports()) {
             anyExcluded = true;
             if (!showExcluded) {
                 continue;
@@ -169,6 +169,10 @@ void ReportsWidgetHibp::makeHibpTable()
 
         if (entry->excludeFromReports()) {
             row[1]->setToolTip(tr("This entry is being excluded from reports"));
+        }
+
+        if(entry->group()->excludeFromReports()) {
+            row[1]->setToolTip(tr("The group for this entry is being excluded from reports"));
         }
 
         row[2]->setForeground(red);

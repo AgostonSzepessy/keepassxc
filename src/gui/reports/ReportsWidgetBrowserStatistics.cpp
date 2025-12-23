@@ -50,7 +50,7 @@ namespace
                 , entry(e)
                 , hasUrls(hU)
                 , hasSettings(hS)
-                , exclude(e->excludeFromReports())
+                , exclude(e->excludeFromReports() || g->excludeFromReports())
             {
             }
         };

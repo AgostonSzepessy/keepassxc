@@ -47,7 +47,7 @@ namespace
                 : group(g)
                 , entry(e)
                 , health(h)
-                , exclude(e->excludeFromReports())
+                , exclude(e->excludeFromReports() || g->excludeFromReports())
             {
             }
 
