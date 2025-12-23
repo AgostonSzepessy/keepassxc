@@ -1284,6 +1284,22 @@ void Group::setPreviousParentGroup(const Group* group)
 void Group::setExcludeFromReports(bool excluded)
 {
     customData()->set(CustomData::ExcludeFromReportsLegacy, excluded ? TRUE_STR : FALSE_STR);
+
+    // Clear out the exclusion flag on entries when we set it on the
+    // group because it'll make it easier to individually set it for an
+    // entry later on
+    if (excluded) {
+        for (auto &entry : m_entries) {
+            entry->setExcludeFromReports(false);
+        }
+    }
+}
+
+void Group::markAllEntriesExcludedFromReports()
+{
+    for (auto &entry : m_entries) {
+        entry->setExcludeFromReports(true);
+    }
 }
 
 bool Group::excludeFromReports() const

@@ -300,20 +300,32 @@ void ReportsWidgetBrowserStatistics::customMenuRequested(QPoint pos)
             &ReportsWidgetBrowserStatistics::deletePluginDataFromSelectedEntries);
 
     // Create the "exclude from reports" menu item
-    const auto exclude = new QAction(icons()->icon("reports-exclude"), tr("Exclude from reports"), this);
+    const auto exclude = new QAction(icons()->icon("reports-exclude"), tr("Exclude Entry(s) from reports"), this);
+    const auto excludeGroups = new QAction(icons()->icon("reports-exclude"), tr("Exclude Group(s) from reports"), this);
 
     bool isExcluded = false;
+    bool isGroupExcluded = false;
+
     for (auto index : selected) {
         auto row = m_modelProxy->mapToSource(index).row();
         auto entry = m_rowToEntry[row].second;
-        if (entry && entry->excludeFromReports()) {
+        if (entry) {
             // If at least one entry is excluded switch to inclusion
-            isExcluded = true;
+            if (entry->excludeFromReports()) {
+                isExcluded = true;
+            }
+            if (entry->group()->excludeFromReports()) {
+                isGroupExcluded = true;
+            }
+
             break;
         }
     }
     exclude->setCheckable(true);
     exclude->setChecked(isExcluded);
+
+    excludeGroups->setCheckable(true);
+    exclude->setChecked(isGroupExcluded);
 
     menu->addAction(exclude);
     connect(exclude, &QAction::toggled, exclude, [this, selected](bool state) {
@@ -322,6 +334,18 @@ void ReportsWidgetBrowserStatistics::customMenuRequested(QPoint pos)
             auto entry = m_rowToEntry[row].second;
             if (entry) {
                 entry->setExcludeFromReports(state);
+            }
+        }
+        calculateBrowserStatistics();
+    });
+
+    menu->addAction(excludeGroups);
+    connect(excludeGroups, &QAction::toggled, excludeGroups, [this, selected](bool state) {
+        for (const auto index : selected) {
+            auto row = m_modelProxy->mapToSource(index).row();
+            auto entry = m_rowToEntry[row].second;
+            if (entry) {
+                entry->group()->setExcludeFromReports(state);
             }
         }
         calculateBrowserStatistics();

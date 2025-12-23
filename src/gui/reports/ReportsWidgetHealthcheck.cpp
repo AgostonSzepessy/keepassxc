@@ -25,6 +25,7 @@
 #include "gui/GuiTools.h"
 #include "gui/Icons.h"
 #include "gui/styles/StateColorPalette.h"
+#include "gui/MessageBox.h"
 
 #include <QMenu>
 #include <QShortcut>
@@ -348,28 +349,92 @@ void ReportsWidgetHealthcheck::customMenuRequested(QPoint pos)
     connect(delEntry, &QAction::triggered, this, &ReportsWidgetHealthcheck::deleteSelectedEntries);
 
     // Create the "exclude from reports" menu item
-    const auto exclude = new QAction(icons()->icon("reports-exclude"), tr("Exclude from reports"), this);
+    const auto excludeAction = new QAction(icons()->icon("reports-exclude"), tr("Exclude Entry(s) from reports"), this);
+    const auto excludeGroupsAction = new QAction(icons()->icon("reports-exclude"), tr("Exclude Group(s) from reports"), this);
 
     bool isExcluded = false;
+    bool isGroupExcluded = false;
+
     for (auto index : selected) {
         auto row = m_modelProxy->mapToSource(index).row();
         auto entry = m_rowToEntry[row].second;
-        if (entry && entry->excludeFromReports()) {
+        if (entry) {
             // If at least one entry is excluded switch to inclusion
-            isExcluded = true;
+            if (entry->excludeFromReports() || entry->group()->excludeFromReports()) {
+                isExcluded = true;
+            }
+            if (entry->group()->excludeFromReports()) {
+                isGroupExcluded = true;
+            }
+
             break;
         }
     }
-    exclude->setCheckable(true);
-    exclude->setChecked(isExcluded);
+    excludeAction->setCheckable(true);
+    excludeAction->setChecked(isExcluded);
 
-    menu->addAction(exclude);
-    connect(exclude, &QAction::toggled, exclude, [this, selected](bool state) {
+    excludeGroupsAction->setCheckable(true);
+    excludeGroupsAction->setChecked(isGroupExcluded);
+
+    menu->addAction(excludeAction);
+    connect(excludeAction, &QAction::toggled, excludeAction, [this, selected](bool checked) {
+        QSet<Group*> groups;
+
+        // If we are including entries (checked is false) but a group is excluded, ask the user if they
+        // would like to include the rest of the group as well (or keep it excluded).
+        // If they exclude it, we need to include the whole group, and then exclude
+        // the entries that aren't selected here.
+        if (!checked) {
+            for(const auto index : selected) {
+                auto row = m_modelProxy->mapToSource(index).row();
+                auto entry = m_rowToEntry[row].second;
+
+                if (entry) {
+                    auto *group = entry->group();
+                    if (group->excludeFromReports() && !groups.contains(group)) {
+                        QString msg = tr("The Group for \"%1\" is excluded. Would you like to include all Entries from there as well?").arg(entry->title());
+                        auto response = MessageBox::question(this, tr("Include Group?"), msg, MessageBox::Yes | MessageBox::No | MessageBox::Cancel, MessageBox::No);
+
+                        if (response == MessageBox::Cancel) {
+                            return;
+                        }
+                        else if (response == MessageBox::Yes) {
+                            group->setExcludeFromReports(false);
+                        }
+                        else if (response == MessageBox::No) {
+                            // We'll exclude all entries from the group here and then
+                            // include the selected ones below
+                            group->setExcludeFromReports(false);
+                            group->markAllEntriesExcludedFromReports();
+                        }
+
+                        groups.insert(group);
+                    }
+                }
+            }
+        }
+
         for (auto index : selected) {
             auto row = m_modelProxy->mapToSource(index).row();
             auto entry = m_rowToEntry[row].second;
+
+            // If the containing group is excluded but the user wants to include
+            // this entry, ask if they want to keep the remaining items in the group
+            // excluded or included
             if (entry) {
-                entry->setExcludeFromReports(state);
+                entry->setExcludeFromReports(checked);
+            }
+        }
+        calculateHealth();
+    });
+
+    menu->addAction(excludeGroupsAction);
+    connect(excludeGroupsAction, &QAction::toggled, excludeGroupsAction, [this, selected](bool checked) {
+        for (const auto index : selected) {
+            auto row = m_modelProxy->mapToSource(index).row();
+            auto entry = m_rowToEntry[row].second;
+            if (entry) {
+                entry->group()->setExcludeFromReports(checked);
             }
         }
         calculateHealth();

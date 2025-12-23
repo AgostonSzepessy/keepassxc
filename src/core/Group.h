@@ -142,6 +142,7 @@ public:
     void setPreviousParentGroup(const Group* group);
     void setPreviousParentGroupUuid(const QUuid& uuid);
     void setExcludeFromReports(bool exclude);
+    void markAllEntriesExcludedFromReports();
 
     bool canUpdateTimeinfo() const;
     void setUpdateTimeinfo(bool value);
