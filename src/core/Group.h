@@ -68,7 +68,6 @@ public:
         Group::MergeMode mergeMode;
         QString tags;
         QUuid previousParentGroupUuid;
-        bool excludeFromReports;
 
         bool operator==(const GroupData& other) const;
         bool operator!=(const GroupData& other) const;
