@@ -48,6 +48,7 @@ protected:
 
 signals:
     void entryActivated(Entry*);
+    void tablePopulated();
 
 public slots:
     void calculateHealth();

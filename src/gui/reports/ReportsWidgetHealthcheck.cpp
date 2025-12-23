@@ -304,6 +304,8 @@ void ReportsWidgetHealthcheck::calculateHealth()
 
     // Only show the "show excluded" checkbox if there are any excluded entries in the database
     m_ui->showExcluded->setVisible(health->anyExcludedEntries());
+
+    emit tablePopulated();
 }
 
 void ReportsWidgetHealthcheck::emitEntryActivated(const QModelIndex& index)
