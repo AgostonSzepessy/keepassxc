@@ -198,7 +198,11 @@ void ReportsWidgetHealthcheck::addHealthRow(QSharedPointer<PasswordHealth> healt
 
     auto title = entry->title();
     if (excluded) {
-        title.append(tr(" (Excluded)"));
+        if(group->excludeFromReports()) {
+            title.append(tr(" (Group Excluded"));
+        } else {
+            title.append(tr(" (Excluded)"));
+        }
     }
     if (entry->isExpired()) {
         title.append(tr(" (Expired)"));

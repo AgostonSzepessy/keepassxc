@@ -160,7 +160,11 @@ void ReportsWidgetHibp::makeHibpTable()
                 continue;
             }
 
-            title.append(tr(" (Excluded)"));
+            if(group->excludeFromReports()) {
+                title.append(tr(" (Group Excluded"));
+            } else {
+                title.append(tr(" (Excluded)"));
+            }
         }
 
         auto row = QList<QStandardItem*>();
