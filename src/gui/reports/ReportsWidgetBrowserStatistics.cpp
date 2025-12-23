@@ -25,6 +25,7 @@
 #include "gui/GuiTools.h"
 #include "gui/Icons.h"
 #include "gui/styles/StateColorPalette.h"
+#include "gui/MessageBox.h"
 
 #include <QJsonDocument>
 #include <QMenu>
@@ -300,8 +301,8 @@ void ReportsWidgetBrowserStatistics::customMenuRequested(QPoint pos)
             &ReportsWidgetBrowserStatistics::deletePluginDataFromSelectedEntries);
 
     // Create the "exclude from reports" menu item
-    const auto exclude = new QAction(icons()->icon("reports-exclude"), tr("Exclude Entry(s) from reports"), this);
-    const auto excludeGroups = new QAction(icons()->icon("reports-exclude"), tr("Exclude Group(s) from reports"), this);
+    const auto excludeAction = new QAction(icons()->icon("reports-exclude"), tr("Exclude Entry(s) from reports"), this);
+    const auto excludeGroupsAction = new QAction(icons()->icon("reports-exclude"), tr("Exclude Group(s) from reports"), this);
 
     bool isExcluded = false;
     bool isGroupExcluded = false;
@@ -311,7 +312,7 @@ void ReportsWidgetBrowserStatistics::customMenuRequested(QPoint pos)
         auto entry = m_rowToEntry[row].second;
         if (entry) {
             // If at least one entry is excluded switch to inclusion
-            if (entry->excludeFromReports()) {
+            if (entry->excludeFromReports() || entry->group()->excludeFromReports()) {
                 isExcluded = true;
             }
             if (entry->group()->excludeFromReports()) {
@@ -321,31 +322,67 @@ void ReportsWidgetBrowserStatistics::customMenuRequested(QPoint pos)
             break;
         }
     }
-    exclude->setCheckable(true);
-    exclude->setChecked(isExcluded);
+    excludeAction->setCheckable(true);
+    excludeAction->setChecked(isExcluded);
 
-    excludeGroups->setCheckable(true);
-    exclude->setChecked(isGroupExcluded);
+    excludeGroupsAction->setCheckable(true);
+    excludeGroupsAction->setChecked(isGroupExcluded);
 
-    menu->addAction(exclude);
-    connect(exclude, &QAction::toggled, exclude, [this, selected](bool state) {
+    menu->addAction(excludeAction);
+    connect(excludeAction, &QAction::toggled, excludeAction, [this, selected](bool checked) {
+        QSet<Group*> groups;
+
+       // If we are including entries (checked is false) but a group is excluded, ask the user if they
+       // would like to include the rest of the group as well (or keep it excluded).
+       // If they exclude it, we need to include the whole group, and then exclude
+       // the entries that aren't selected here.
+        if (!checked) {
+            for(const auto index : selected) {
+                auto row = m_modelProxy->mapToSource(index).row();
+                auto entry = m_rowToEntry[row].second;
+
+                if (entry) {
+                    auto *group = entry->group();
+                    if (group->excludeFromReports() && !groups.contains(group)) {
+                        QString msg = tr("The Group for \"%1\" is excluded. Would you like to include all Entries from there as well?").arg(entry->title());
+                        auto response = MessageBox::question(this, tr("Include Group?"), msg, MessageBox::Yes | MessageBox::No | MessageBox::Cancel, MessageBox::No);
+
+                        if (response == MessageBox::Cancel) {
+                            return;
+                        }
+                        else if (response == MessageBox::Yes) {
+                            group->setExcludeFromReports(false);
+                        }
+                        else if (response == MessageBox::No) {
+                            // We'll exclude all entries from the group here and then
+                            // include the selected ones below
+                            group->setExcludeFromReports(false);
+                            group->markAllEntriesExcludedFromReports();
+                        }
+
+                        groups.insert(group);
+                    }
+                }
+            }
+        }
+
         for (auto index : selected) {
             auto row = m_modelProxy->mapToSource(index).row();
             auto entry = m_rowToEntry[row].second;
             if (entry) {
-                entry->setExcludeFromReports(state);
+                entry->setExcludeFromReports(checked);
             }
         }
         calculateBrowserStatistics();
     });
 
-    menu->addAction(excludeGroups);
-    connect(excludeGroups, &QAction::toggled, excludeGroups, [this, selected](bool state) {
+    menu->addAction(excludeGroupsAction);
+    connect(excludeGroupsAction, &QAction::toggled, excludeGroupsAction, [this, selected](bool checked) {
         for (const auto index : selected) {
             auto row = m_modelProxy->mapToSource(index).row();
             auto entry = m_rowToEntry[row].second;
             if (entry) {
-                entry->group()->setExcludeFromReports(state);
+                entry->group()->setExcludeFromReports(checked);
             }
         }
         calculateBrowserStatistics();
