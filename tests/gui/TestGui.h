@@ -37,6 +37,11 @@ private slots:
     void cleanup();
     void cleanupTestCase();
 
+
+    void testDatabaseReports();
+    void testExcludedDatabaseReports();
+
+private:
     void testSettingsDefaultTabOrder();
     void testCreateDatabase();
     void testMergeDatabase();
@@ -71,9 +76,7 @@ private slots:
     void testTrayRestoreHide();
     void testShortcutConfig();
     void testMenuActionStates();
-    void testExcludeGroupFromReports();
 
-private:
     void addCannedEntries();
     void addGroup(const QString &name);
     void addEntry(const QString &groupName, const QString &title, const QString &username, const QString &password);
