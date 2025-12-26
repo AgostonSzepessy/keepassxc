@@ -332,10 +332,12 @@ void ReportsWidgetHealthcheck::customMenuRequested(QPoint pos)
 
     // Create the context menu
     const auto menu = new QMenu(this);
+    menu->setObjectName("customMenu");
 
     // Create the "edit entry" menu item (only if 1 row is selected)
     if (selected.size() == 1) {
         const auto edit = new QAction(icons()->icon("entry-edit"), tr("Edit Entry…"), this);
+        edit->setObjectName("contextMenuEditAction");
         menu->addAction(edit);
         connect(edit, &QAction::triggered, edit, [this, selected] {
             auto row = m_modelProxy->mapToSource(selected[0]).row();
@@ -346,6 +348,7 @@ void ReportsWidgetHealthcheck::customMenuRequested(QPoint pos)
 
     // Create the "Expire entry" menu item
     const auto expEntry = new QAction(icons()->icon("entry-expire"), tr("Expire Entry(s)…", "", selected.size()), this);
+    expEntry->setObjectName("contextMenuExpireAction");
     menu->addAction(expEntry);
     connect(expEntry, &QAction::triggered, this, &ReportsWidgetHealthcheck::expireSelectedEntries);
 
@@ -356,7 +359,9 @@ void ReportsWidgetHealthcheck::customMenuRequested(QPoint pos)
 
     // Create the "exclude from reports" menu item
     const auto excludeAction = new QAction(icons()->icon("reports-exclude"), tr("Exclude Entry(s) from reports"), this);
+    excludeAction->setObjectName("contextMenuExcludeAction");
     const auto excludeGroupsAction = new QAction(icons()->icon("reports-exclude"), tr("Exclude Group(s) from reports"), this);
+    excludeGroupsAction->setObjectName("contextMenuxcludeGroupAction");
 
     bool isExcluded = false;
     bool isGroupExcluded = false;

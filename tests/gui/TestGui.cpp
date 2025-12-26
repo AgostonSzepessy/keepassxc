@@ -2630,6 +2630,150 @@ void TestGui::testExcludedDatabaseReports()
     QCOMPARE(m_dbWidget->currentMode(), DatabaseWidget::Mode::ViewMode);
 }
 
+void TestGui::testIncludeExcludedGroupEntryInReports()
+{
+    addGroup("Finance");
+    addGroup("Entertainment");
+
+    // Use bad passwords to make sure they all show up in health report
+    addEntry("Finance", "Chase", "user1", "password");
+    addEntry("Finance", "Amex", "user1", "password123");
+    addEntry("Finance", "Capital One", "user1", "password456");
+
+    addEntry("Entertainment", "Netflix", "user1", "password");
+    addEntry("Entertainment", "Hulu", "user1", "password321");
+    addEntry("Entertainment", "Apple TV", "user1", "password123");
+
+    Group* entertainmentGroup = m_dbWidget->currentGroup()->findChildByName("Entertainment");
+    m_dbWidget->groupView()->setCurrentGroup(entertainmentGroup);
+
+    auto* toolBar = m_mainWindow->findChild<QToolBar*>("toolBar");
+    QVERIFY(toolBar);
+
+    auto *editGroupAction = m_mainWindow->findChild<QAction*>("actionGroupEdit");
+    QVERIFY(editGroupAction->isEnabled());
+    triggerAction("actionGroupEdit");
+
+    auto* editGroupWidget = m_dbWidget->findChild<EditGroupWidget*>("editGroupWidget");
+    QVERIFY(editGroupWidget);
+
+           // Bring up group edit page
+    QTest::mouseClick(editGroupWidget, Qt::LeftButton);
+
+    QLineEdit* nameEdit = editGroupWidget->findChild<QLineEdit*>("editName");
+    QCOMPARE(nameEdit->text(), QString("Entertainment"));
+
+    // Find database report exclusion checkbox and check it
+    QCheckBox *excludeGroupFromReportsCheckbox = editGroupWidget->findChild<QCheckBox*>("excludeReportsCheckBox");
+    QVERIFY(excludeGroupFromReportsCheckbox);
+
+    excludeGroupFromReportsCheckbox->setChecked(true);
+
+    auto* editGroupWidgetButtonBox = editGroupWidget->findChild<QDialogButtonBox*>("buttonBox");
+    QVERIFY(editGroupWidgetButtonBox);
+
+    // Apply and go back to main view
+    QTest::mouseClick(editGroupWidgetButtonBox->button(QDialogButtonBox::Apply), Qt::LeftButton);
+    QTest::mouseClick(editGroupWidgetButtonBox->button(QDialogButtonBox::Ok), Qt::LeftButton);
+    QCOMPARE(m_dbWidget->currentMode(), DatabaseWidget::Mode::ViewMode);
+
+    QVERIFY(entertainmentGroup->excludeFromReports());
+
+    // Verify they don't show up in the report
+    auto *actionReports = m_mainWindow->findChild<QAction*>("actionReports");
+    QVERIFY(actionReports->isEnabled());
+
+    QWidget* actionReportsWidget = toolBar->widgetForAction(actionReports);
+    QVERIFY(actionReportsWidget);
+    QVERIFY(actionReportsWidget->isVisible());
+    QVERIFY(actionReportsWidget->isEnabled());
+
+    QTest::mouseClick(actionReportsWidget, Qt::LeftButton);
+
+    auto *reportsDialog = m_dbWidget->findChild<ReportsDialog*>("reportsDialog");
+    QVERIFY(reportsDialog);
+
+    CategoryListWidget *categoryList = reportsDialog->findChild<CategoryListWidget*>("categoryList");
+    categoryList->setCurrentCategory(1);
+
+    QStackedWidget *stackedWidget = reportsDialog->findChild<QStackedWidget*>("stackedWidget");
+    QVERIFY(stackedWidget);
+    stackedWidget->setCurrentIndex(1);
+
+    ReportsWidgetHealthcheck* healthCheckWidget = reportsDialog->findChild<ReportsWidgetHealthcheck*>();
+    QVERIFY(healthCheckWidget);
+
+    QTest::mouseClick(healthCheckWidget, Qt::LeftButton);
+    QTableView *healthTable = healthCheckWidget->findChild<QTableView*>("healthcheckTableView");
+    QVERIFY(healthTable);
+
+    QSignalSpy healthCheckWidgetSpy(healthCheckWidget, &ReportsWidgetHealthcheck::tablePopulated);
+
+    QAbstractItemModel *healthModel = healthTable->model();
+    QVERIFY(healthModel);
+
+    // There should be 3 showing
+    QTRY_COMPARE(healthCheckWidgetSpy.count(), 1);
+    QCOMPARE(healthModel->rowCount(), 5); // account for 2 existing passwords at the start of each test case
+
+    QCheckBox *showExcludedCheckBox = healthCheckWidget->findChild<QCheckBox*>("showExcluded");
+    QVERIFY(showExcludedCheckBox);
+    QCOMPARE(showExcludedCheckBox->isChecked(), false);
+
+    showExcludedCheckBox->click();
+    QVERIFY(showExcludedCheckBox->isChecked());
+    QTRY_COMPARE(healthCheckWidgetSpy.count(), 2);
+
+    healthModel = healthTable->model();
+    QCOMPARE(healthModel->rowCount(), 8); // account for 2 existing passwords at the start of each test case
+
+    for(int i = 0; i < healthModel->rowCount(); ++i) {
+        QModelIndex index = healthModel->index(i, 1);
+        QVariant data = healthModel->data(index);
+
+        if(data.toString().contains("Netflix")) {
+            auto rect = healthTable->visualRect(index);
+            auto centerPoint = rect.center();
+            QTest::mouseClick(healthTable->viewport(), Qt::LeftButton, Qt::NoModifier, centerPoint);
+            // QTest::mouseClick(healthTable->viewport(), Qt::RightButton, Qt::NoModifier, centerPoint);
+            // QTest::mouseClick(healthCheckWidget, Qt::RightButton);
+            healthCheckWidget->customMenuRequested(centerPoint);
+
+            QMenu *menu = healthCheckWidget->findChild<QMenu*>("customMenu");
+            QVERIFY(menu);
+            QAction *excludeEntryAction = healthCheckWidget->findChild<QAction*>("contextMenuExcludeAction");
+            QVERIFY(excludeEntryAction);
+            MessageBox::setNextAnswer(MessageBox::No);
+
+            excludeEntryAction->trigger();
+            QApplication::processEvents();
+            break;
+        }
+    }
+
+    QTRY_COMPARE(healthCheckWidgetSpy.count(), 3);
+
+    for(int i = 0; i < healthModel->rowCount(); ++i) {
+        QModelIndex index = healthModel->index(i, 1);
+        QVariant data = healthModel->data(index);
+
+        if(data.toString().contains("Netflix")) {
+            QVERIFY(!data.toString().contains("(Group Excluded)"));
+            break;
+        }
+    }
+
+    showExcludedCheckBox->click();
+    QVERIFY(!showExcludedCheckBox->isChecked());
+    QTRY_COMPARE(healthCheckWidgetSpy.count(), 4);
+
+    QCOMPARE(healthModel->rowCount(), 6); // 2 existing passwords from start, 3 from Finance, 1 from Entertainment
+
+    auto *reportsDialogButtonBox = reportsDialog->findChild<QDialogButtonBox*>("buttonBox");
+    QTest::mouseClick(reportsDialogButtonBox->button(QDialogButtonBox::Close), Qt::LeftButton);
+    QCOMPARE(m_dbWidget->currentMode(), DatabaseWidget::Mode::ViewMode);
+}
+
 void TestGui::addCannedEntries()
 {
     // Find buttons
