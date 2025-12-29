@@ -39,8 +39,7 @@ private slots:
 
 
     void testDatabaseReports();
-    void testExcludedDatabaseReports();
-    void testIncludeExcludedGroupEntryInReports();
+    void testExcludedGroupEntryInReports();
 
 private:
     void testSettingsDefaultTabOrder();
