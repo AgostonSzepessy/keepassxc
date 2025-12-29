@@ -26,6 +26,7 @@
 #include "gui/Icons.h"
 #include "gui/styles/StateColorPalette.h"
 #include "gui/MessageBox.h"
+#include "gui/reports/ProxyModels.h"
 
 #include <QMenu>
 #include <QShortcut>
@@ -138,10 +139,8 @@ Health::Health(QSharedPointer<Database> db)
 }
 
 ReportsWidgetHealthcheck::ReportsWidgetHealthcheck(QWidget* parent)
-    : QWidget(parent)
+    : ReportsWidgetBase(parent, SortProxyModelKind::Healthcheck)
     , m_ui(new Ui::ReportsWidgetHealthcheck())
-    , m_referencesModel(new QStandardItemModel(this))
-    , m_modelProxy(new ReportSortProxyModel(this))
 {
     m_ui->setupUi(this);
 
@@ -325,131 +324,11 @@ void ReportsWidgetHealthcheck::emitEntryActivated(const QModelIndex& index)
 
 void ReportsWidgetHealthcheck::customMenuRequested(QPoint pos)
 {
-    auto selected = m_ui->healthcheckTableView->selectionModel()->selectedRows();
-    if (selected.isEmpty()) {
+    auto menu = customMenuRequestedBase();
+
+    if(!menu) {
         return;
     }
-
-    // Create the context menu
-    const auto menu = new QMenu(this);
-    menu->setObjectName("customMenu");
-
-    // Create the "edit entry" menu item (only if 1 row is selected)
-    if (selected.size() == 1) {
-        const auto edit = new QAction(icons()->icon("entry-edit"), tr("Edit Entry…"), this);
-        edit->setObjectName("contextMenuEditAction");
-        menu->addAction(edit);
-        connect(edit, &QAction::triggered, edit, [this, selected] {
-            auto row = m_modelProxy->mapToSource(selected[0]).row();
-            auto entry = m_rowToEntry[row].second;
-            emit entryActivated(entry);
-        });
-    }
-
-    // Create the "Expire entry" menu item
-    const auto expEntry = new QAction(icons()->icon("entry-expire"), tr("Expire Entry(s)…", "", selected.size()), this);
-    expEntry->setObjectName("contextMenuExpireAction");
-    menu->addAction(expEntry);
-    connect(expEntry, &QAction::triggered, this, &ReportsWidgetHealthcheck::expireSelectedEntries);
-
-    // Create the "delete entry" menu item
-    const auto delEntry = new QAction(icons()->icon("entry-delete"), tr("Delete Entry(s)…", "", selected.size()), this);
-    menu->addAction(delEntry);
-    connect(delEntry, &QAction::triggered, this, &ReportsWidgetHealthcheck::deleteSelectedEntries);
-
-    // Create the "exclude from reports" menu item
-    const auto excludeAction = new QAction(icons()->icon("reports-exclude"), tr("Exclude Entry(s) from reports"), this);
-    excludeAction->setObjectName("contextMenuExcludeAction");
-    const auto excludeGroupsAction = new QAction(icons()->icon("reports-exclude"), tr("Exclude Group(s) from reports"), this);
-    excludeGroupsAction->setObjectName("contextMenuxcludeGroupAction");
-
-    bool isExcluded = false;
-    bool isGroupExcluded = false;
-
-    for (auto index : selected) {
-        auto row = m_modelProxy->mapToSource(index).row();
-        auto entry = m_rowToEntry[row].second;
-        if (entry) {
-            // If at least one entry is excluded switch to inclusion
-            if (entry->excludeFromReports() || entry->group()->excludeFromReports()) {
-                isExcluded = true;
-            }
-            if (entry->group()->excludeFromReports()) {
-                isGroupExcluded = true;
-            }
-
-            break;
-        }
-    }
-    excludeAction->setCheckable(true);
-    excludeAction->setChecked(isExcluded);
-
-    excludeGroupsAction->setCheckable(true);
-    excludeGroupsAction->setChecked(isGroupExcluded);
-
-    menu->addAction(excludeAction);
-    connect(excludeAction, &QAction::toggled, excludeAction, [this, selected](bool checked) {
-        QSet<Group*> groups;
-
-        // If we are including entries (checked is false) but a group is excluded, ask the user if they
-        // would like to include the rest of the group as well (or keep it excluded).
-        // If they exclude it, we need to include the whole group, and then exclude
-        // the entries that aren't selected here.
-        if (!checked) {
-            for(const auto index : selected) {
-                auto row = m_modelProxy->mapToSource(index).row();
-                auto entry = m_rowToEntry[row].second;
-
-                if (entry) {
-                    auto *group = entry->group();
-                    if (group->excludeFromReports() && !groups.contains(group)) {
-                        QString msg = tr("The Group for \"%1\" is excluded. Would you like to include all Entries from there as well?").arg(entry->title());
-                        auto response = MessageBox::question(this, tr("Include Group?"), msg, MessageBox::Yes | MessageBox::No | MessageBox::Cancel, MessageBox::No);
-
-                        if (response == MessageBox::Cancel) {
-                            return;
-                        }
-                        else if (response == MessageBox::Yes) {
-                            group->setExcludeFromReports(false);
-                        }
-                        else if (response == MessageBox::No) {
-                            // We'll exclude all entries from the group here and then
-                            // include the selected ones below
-                            group->setExcludeFromReports(false);
-                            group->markAllEntriesExcludedFromReports();
-                        }
-
-                        groups.insert(group);
-                    }
-                }
-            }
-        }
-
-        for (auto index : selected) {
-            auto row = m_modelProxy->mapToSource(index).row();
-            auto entry = m_rowToEntry[row].second;
-
-            // If the containing group is excluded but the user wants to include
-            // this entry, ask if they want to keep the remaining items in the group
-            // excluded or included
-            if (entry) {
-                entry->setExcludeFromReports(checked);
-            }
-        }
-        calculateHealth();
-    });
-
-    menu->addAction(excludeGroupsAction);
-    connect(excludeGroupsAction, &QAction::toggled, excludeGroupsAction, [this, selected](bool checked) {
-        for (const auto index : selected) {
-            auto row = m_modelProxy->mapToSource(index).row();
-            auto entry = m_rowToEntry[row].second;
-            if (entry) {
-                entry->group()->setExcludeFromReports(checked);
-            }
-        }
-        calculateHealth();
-    });
 
     // Show the context menu
     menu->popup(m_ui->healthcheckTableView->viewport()->mapToGlobal(pos));
@@ -460,35 +339,12 @@ void ReportsWidgetHealthcheck::saveSettings()
     // nothing to do - the tab is passive
 }
 
-QList<Entry*> ReportsWidgetHealthcheck::getSelectedEntries()
+void ReportsWidgetHealthcheck::updateWidget()
 {
-    QList<Entry*> selectedEntries;
-    for (auto index : m_ui->healthcheckTableView->selectionModel()->selectedRows()) {
-        auto row = m_modelProxy->mapToSource(index).row();
-        auto entry = m_rowToEntry[row].second;
-        if (entry) {
-            selectedEntries << entry;
-        }
-    }
-    return selectedEntries;
-}
-
-void ReportsWidgetHealthcheck::expireSelectedEntries()
-{
-    for (auto entry : getSelectedEntries()) {
-        entry->expireNow();
-    }
-
     calculateHealth();
 }
 
-void ReportsWidgetHealthcheck::deleteSelectedEntries()
+QTableView *ReportsWidgetHealthcheck::getTableView()
 {
-    QList<Entry*> selectedEntries = getSelectedEntries();
-    bool permanent = !m_db->metadata()->recycleBinEnabled();
-    if (GuiTools::confirmDeleteEntries(this, selectedEntries, permanent)) {
-        GuiTools::deleteEntriesResolveReferences(this, selectedEntries, permanent);
-    }
-
-    calculateHealth();
+    return m_ui->healthcheckTableView;
 }

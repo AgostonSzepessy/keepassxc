@@ -28,17 +28,36 @@
 #include <QIcon>
 #include <QSortFilterProxyModel>
 #include <QStandardItemModel>
+#include <QTableView>
 
-ReportsWidgetBase::ReportsWidgetBase(QWidget* parent)
+ReportsWidgetBase::ReportsWidgetBase(QWidget* parent, SortProxyModelKind proxyModel)
     : QWidget{parent}
+    , m_referencesModel(new QStandardItemModel(this))
 {
+    // We have to initialize this here; if we do it in the constructor initializer list,
+    // the base object isn't setup enough and the constructor for QSortFilterProxyModel
+    // crashes.
+    switch (proxyModel) {
+    case SortProxyModelKind::Default:
+        m_modelProxy.reset(new QSortFilterProxyModel(this));
+        break;
+    case SortProxyModelKind::Healthcheck:
+        m_modelProxy.reset(new HealthcheckReportSortProxyModel(this));
+        break;
+    case SortProxyModelKind::Hibp:
+        m_modelProxy.reset(new HibpReportSortPoxyModel(this));
+        break;
+    }
 }
 
-void ReportsWidgetBase::customMenuRequestedBase()
+ReportsWidgetBase::~ReportsWidgetBase()
+{}
+
+QMenu *ReportsWidgetBase::customMenuRequestedBase()
 {
     auto selected = getTableView()->selectionModel()->selectedRows();
     if (selected.isEmpty()) {
-        return;
+        return nullptr;
     }
 
            // Create the context menu
@@ -161,6 +180,8 @@ void ReportsWidgetBase::customMenuRequestedBase()
         }
         updateWidget();
     });
+
+    return menu;
 }
 
 QList<Entry*> ReportsWidgetBase::getSelectedEntries()

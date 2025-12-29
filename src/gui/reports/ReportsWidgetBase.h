@@ -19,9 +19,9 @@
 #define KEEPASSXC_REPORTSWIDGETBASE_H
 
 #include <QWidget>
-#include <QTableView>
 
 #include "gui/entry/EntryModel.h"
+#include "gui/reports/ProxyModels.h"
 
 class Database;
 class Entry;
@@ -29,6 +29,8 @@ class Group;
 class PasswordHealth;
 class QSortFilterProxyModel;
 class QStandardItemModel;
+class QMenu;
+class QTableView;
 
 /**
  * @brief The ReportsWidgetBase class implements functionality common across the various
@@ -38,15 +40,15 @@ class ReportsWidgetBase : public QWidget
 {
     Q_OBJECT
 public:
-    explicit ReportsWidgetBase(QWidget* parent = nullptr);
+    explicit ReportsWidgetBase(QWidget* parent, SortProxyModelKind);
+    virtual ~ReportsWidgetBase();
 
 protected:
-    virtual QScopedPointer<QTableView> getTableView() = 0;
+    virtual QTableView *getTableView() = 0;
     virtual void updateWidget() = 0;
-    void customMenuRequestedBase();
+    QMenu *customMenuRequestedBase();
 
 public slots:
-    void customMenuRequested(QPoint);
     QList<Entry*> getSelectedEntries();
     void expireSelectedEntries();
     void deleteSelectedEntries();

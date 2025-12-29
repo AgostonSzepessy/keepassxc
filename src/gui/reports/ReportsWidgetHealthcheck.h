@@ -19,6 +19,7 @@
 #define KEEPASSXC_REPORTSWIDGETHEALTHCHECK_H
 
 #include "gui/entry/EntryModel.h"
+#include "gui/reports/ReportsWidgetBase.h"
 #include <QWidget>
 
 class Database;
@@ -27,13 +28,14 @@ class Group;
 class PasswordHealth;
 class QSortFilterProxyModel;
 class QStandardItemModel;
+class QTableView;
 
 namespace Ui
 {
     class ReportsWidgetHealthcheck;
 }
 
-class ReportsWidgetHealthcheck : public QWidget
+class ReportsWidgetHealthcheck : public ReportsWidgetBase
 {
     Q_OBJECT
 public:
@@ -45,6 +47,8 @@ public:
 
 protected:
     void showEvent(QShowEvent* event) override;
+    void updateWidget() override;
+    QTableView *getTableView() override;
 
 signals:
     void entryActivated(Entry*);
@@ -54,9 +58,6 @@ public slots:
     void calculateHealth();
     void emitEntryActivated(const QModelIndex& index);
     void customMenuRequested(QPoint);
-    QList<Entry*> getSelectedEntries();
-    void expireSelectedEntries();
-    void deleteSelectedEntries();
 
 private:
     void addHealthRow(QSharedPointer<PasswordHealth>, Group*, Entry*, bool excluded);
@@ -64,10 +65,10 @@ private:
     QScopedPointer<Ui::ReportsWidgetHealthcheck> m_ui;
 
     bool m_healthCalculated = false;
-    QScopedPointer<QStandardItemModel> m_referencesModel;
-    QScopedPointer<QSortFilterProxyModel> m_modelProxy;
-    QSharedPointer<Database> m_db;
-    QList<QPair<Group*, Entry*>> m_rowToEntry;
+    // QScopedPointer<QStandardItemModel> m_referencesModel;
+    // QScopedPointer<QSortFilterProxyModel> m_modelProxy;
+    // QSharedPointer<Database> m_db;
+    // QList<QPair<Group*, Entry*>> m_rowToEntry;
 };
 
 #endif // KEEPASSXC_REPORTSWIDGETHEALTHCHECK_H
