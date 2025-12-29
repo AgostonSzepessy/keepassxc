@@ -24,6 +24,7 @@
 #include "gui/GuiTools.h"
 #include "gui/Icons.h"
 #include "gui/MessageBox.h"
+#include "gui/reports/ProxyModels.h"
 
 #include <QMenu>
 #include <QShortcut>
@@ -56,10 +57,8 @@ namespace
 } // namespace
 
 ReportsWidgetHibp::ReportsWidgetHibp(QWidget* parent)
-    : QWidget(parent)
+    : ReportsWidgetBase(parent, SortProxyModelKind::Hibp)
     , m_ui(new Ui::ReportsWidgetHibp())
-    , m_referencesModel(new QStandardItemModel(this))
-    , m_modelProxy(new ReportSortProxyModel(this))
 {
     m_ui->setupUi(this);
 
@@ -183,7 +182,7 @@ void ReportsWidgetHibp::makeHibpTable()
         m_referencesModel->appendRow(row);
 
         // Store entry pointer per table row (used in double click handler)
-        m_rowToEntry.append(entry);
+        m_rowToEntry.append({group, entry});
     }
 
     // If there was an error, append the error message to the table
@@ -318,12 +317,12 @@ void ReportsWidgetHibp::emitEntryActivated(const QModelIndex& index)
     // Find which database entry was double-clicked
     auto mappedIndex = m_modelProxy->mapToSource(index);
     const auto entry = m_rowToEntry[mappedIndex.row()];
-    if (entry) {
+    if (entry.second) {
         // Found it, invoke entry editor
-        m_editedEntry = entry;
-        m_editedPassword = entry->password();
-        m_editedExcluded = entry->excludeFromReports();
-        emit entryActivated(const_cast<Entry*>(entry));
+        m_editedEntry = entry.second;
+        m_editedPassword = entry.second->password();
+        m_editedExcluded = entry.second->excludeFromReports();
+        emit entryActivated(const_cast<Entry*>(entry.second));
     }
 }
 
@@ -362,166 +361,28 @@ void ReportsWidgetHibp::refreshAfterEdit()
 
 void ReportsWidgetHibp::customMenuRequested(QPoint pos)
 {
-    auto selected = m_ui->hibpTableView->selectionModel()->selectedRows();
-    if (selected.isEmpty()) {
+    // Create the context menu
+    const auto menu = customMenuRequestedBase();
+
+    if(!menu) {
         return;
     }
-
-    // Create the context menu
-    const auto menu = new QMenu(this);
-
-    // Create the "edit entry" menu item if 1 row is selected
-    if (selected.size() == 1) {
-        const auto edit = new QAction(icons()->icon("entry-edit"), tr("Edit Entry…"), this);
-        menu->addAction(edit);
-        connect(edit, &QAction::triggered, edit, [this, selected] {
-            auto row = m_modelProxy->mapToSource(selected[0]).row();
-            auto entry = m_rowToEntry[row];
-            emit entryActivated(entry);
-        });
-    }
-
-    // Create the "Expire entry" menu item
-    const auto expEntry = new QAction(icons()->icon("entry-expire"), tr("Expire Entry(s)…", "", selected.size()), this);
-    menu->addAction(expEntry);
-    connect(expEntry, &QAction::triggered, this, &ReportsWidgetHibp::expireSelectedEntries);
-
-    // Create the "delete entry" menu item
-    const auto delEntry = new QAction(icons()->icon("entry-delete"), tr("Delete Entry(s)…", "", selected.size()), this);
-    menu->addAction(delEntry);
-    connect(delEntry, &QAction::triggered, this, &ReportsWidgetHibp::deleteSelectedEntries);
-
-    // Create the "exclude from reports" menu item
-    const auto excludeAction = new QAction(icons()->icon("reports-exclude"), tr("Exclude Entry(s) from reports"), this);
-    const auto excludeGroupsAction = new QAction(icons()->icon("reports-exclude"), tr("Exclude Group(s) from reports"), this);
-
-    bool isExcluded = false;
-    bool isGroupExcluded = false;
-
-    for (auto index : selected) {
-        auto row = m_modelProxy->mapToSource(index).row();
-        auto entry = m_rowToEntry[row];
-        if (entry) {
-            // If at least one entry is excluded switch to inclusion
-            if (entry->excludeFromReports() || entry->group()->excludeFromReports()) {
-                isExcluded = true;
-            }
-            if (entry->group()->excludeFromReports()) {
-                isGroupExcluded = true;
-            }
-
-            break;
-        }
-    }
-
-    excludeAction->setCheckable(true);
-    excludeAction->setChecked(isExcluded);
-
-    excludeGroupsAction->setCheckable(true);
-    excludeGroupsAction->setChecked(isGroupExcluded);
-
-    menu->addAction(excludeAction);
-    connect(excludeAction, &QAction::toggled, excludeAction, [this, selected](bool checked) {
-        QSet<Group*> groups;
-
-       // If we are including entries (checked is false) but a group is excluded, ask the user if they
-       // would like to include the rest of the group as well (or keep it excluded).
-       // If they exclude it, we need to include the whole group, and then exclude
-       // the entries that aren't selected here.
-        if (!checked) {
-            for(const auto index : selected) {
-                auto row = m_modelProxy->mapToSource(index).row();
-                auto entry = m_rowToEntry[row];
-
-                if (entry) {
-                    auto *group = entry->group();
-                    if (group->excludeFromReports() && !groups.contains(group)) {
-                        QString msg = tr("The Group for \"%1\" is excluded. Would you like to include all Entries from there as well?").arg(entry->title());
-                        auto response = MessageBox::question(this, tr("Include Group?"), msg, MessageBox::Yes | MessageBox::No | MessageBox::Cancel, MessageBox::No);
-
-                        if (response == MessageBox::Cancel) {
-                            return;
-                        }
-                        else if (response == MessageBox::Yes) {
-                            group->setExcludeFromReports(false);
-                        }
-                        else if (response == MessageBox::No) {
-                            // We'll exclude all entries from the group here and then
-                            // include the selected ones below
-                            group->setExcludeFromReports(false);
-                            group->markAllEntriesExcludedFromReports();
-                        }
-
-                        groups.insert(group);
-                    }
-                }
-            }
-        }
-
-        for (auto index : selected) {
-            auto row = m_modelProxy->mapToSource(index).row();
-            auto entry = m_rowToEntry[row];
-
-           // If the containing group is excluded but the user wants to include
-           // this entry, ask if they want to keep the remaining items in the group
-           // excluded or included
-            if (entry) {
-                entry->setExcludeFromReports(checked);
-            }
-        }
-        makeHibpTable();
-    });
-
-    menu->addAction(excludeGroupsAction);
-    connect(excludeGroupsAction, &QAction::toggled, excludeGroupsAction, [this, selected](bool checked) {
-        for (const auto index : selected) {
-            auto row = m_modelProxy->mapToSource(index).row();
-            auto entry = m_rowToEntry[row];
-            if (entry) {
-                entry->group()->setExcludeFromReports(checked);
-            }
-        }
-        makeHibpTable();
-    });
 
     // Show the context menu
     menu->popup(m_ui->hibpTableView->viewport()->mapToGlobal(pos));
 }
 
-QList<Entry*> ReportsWidgetHibp::getSelectedEntries()
-{
-    QList<Entry*> selectedEntries;
-    for (auto index : m_ui->hibpTableView->selectionModel()->selectedRows()) {
-        auto row = m_modelProxy->mapToSource(index).row();
-        auto entry = m_rowToEntry[row];
-        if (entry) {
-            selectedEntries << entry;
-        }
-    }
-    return selectedEntries;
-}
-
-void ReportsWidgetHibp::expireSelectedEntries()
-{
-    for (auto entry : getSelectedEntries()) {
-        entry->expireNow();
-    }
-
-    makeHibpTable();
-}
-
-void ReportsWidgetHibp::deleteSelectedEntries()
-{
-    QList<Entry*> selectedEntries = getSelectedEntries();
-    bool permanent = !m_db->metadata()->recycleBinEnabled();
-    if (GuiTools::confirmDeleteEntries(this, selectedEntries, permanent)) {
-        GuiTools::deleteEntriesResolveReferences(this, selectedEntries, permanent);
-    }
-
-    makeHibpTable();
-}
-
 void ReportsWidgetHibp::saveSettings()
 {
     // nothing to do - the tab is passive
+}
+
+void ReportsWidgetHibp::updateWidget()
+{
+    makeHibpTable();
+}
+
+QTableView *ReportsWidgetHibp::getTableView() const
+{
+    return m_ui->hibpTableView;
 }
