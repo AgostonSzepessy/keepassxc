@@ -184,6 +184,19 @@ QMenu *ReportsWidgetBase::customMenuRequestedBase()
     return menu;
 }
 
+QList<Entry*> ReportsWidgetBase::getSelectedEntries() const
+{
+    QList<Entry*> selectedEntries;
+    for (auto index : getTableView()->selectionModel()->selectedRows()) {
+        auto row = m_modelProxy->mapToSource(index).row();
+        auto entry = m_rowToEntry[row].second;
+        if (entry) {
+            selectedEntries << entry;
+        }
+    }
+    return selectedEntries;
+}
+
 QList<Entry*> ReportsWidgetBase::getSelectedEntries()
 {
     QList<Entry*> selectedEntries;

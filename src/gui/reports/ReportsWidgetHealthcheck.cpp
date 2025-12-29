@@ -344,7 +344,7 @@ void ReportsWidgetHealthcheck::updateWidget()
     calculateHealth();
 }
 
-QTableView *ReportsWidgetHealthcheck::getTableView()
+QTableView *ReportsWidgetHealthcheck::getTableView() const
 {
     return m_ui->healthcheckTableView;
 }

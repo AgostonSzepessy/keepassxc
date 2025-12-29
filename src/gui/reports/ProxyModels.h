@@ -18,8 +18,8 @@
 #ifndef KEEPASSXC_PROXYMODELS_H
 #define KEEPASSXC_PROXYMODELS_H
 
-#include <QSortFilterProxyModel>
 #include <QModelIndex>
+#include <QSortFilterProxyModel>
 
 enum class SortProxyModelKind
 {
@@ -32,7 +32,9 @@ class HibpReportSortPoxyModel : public QSortFilterProxyModel
 {
 public:
     HibpReportSortPoxyModel(QObject* parent)
-        : QSortFilterProxyModel(parent){}
+        : QSortFilterProxyModel(parent)
+    {
+    }
     ~HibpReportSortPoxyModel() override = default;
 
 protected:
@@ -40,8 +42,7 @@ protected:
     {
         // Sort count column by user data
         if (left.column() == 2) {
-            return sourceModel()->data(left, Qt::UserRole).toInt()
-                   < sourceModel()->data(right, Qt::UserRole).toInt();
+            return sourceModel()->data(left, Qt::UserRole).toInt() < sourceModel()->data(right, Qt::UserRole).toInt();
         }
         // Otherwise use default sorting
         return QSortFilterProxyModel::lessThan(left, right);
@@ -52,7 +53,9 @@ class HealthcheckReportSortProxyModel : public QSortFilterProxyModel
 {
 public:
     HealthcheckReportSortProxyModel(QObject* parent)
-        : QSortFilterProxyModel(parent){}
+        : QSortFilterProxyModel(parent)
+    {
+    }
     ~HealthcheckReportSortProxyModel() override = default;
 
 protected:

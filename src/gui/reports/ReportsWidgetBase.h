@@ -44,9 +44,11 @@ public:
     virtual ~ReportsWidgetBase();
 
 protected:
-    virtual QTableView *getTableView() = 0;
+    virtual QTableView *getTableView() const = 0;
     virtual void updateWidget() = 0;
+
     QMenu *customMenuRequestedBase();
+    QList<Entry*> getSelectedEntries() const;
 
 public slots:
     QList<Entry*> getSelectedEntries();

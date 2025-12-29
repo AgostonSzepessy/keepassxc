@@ -48,7 +48,7 @@ public:
 protected:
     void showEvent(QShowEvent* event) override;
     void updateWidget() override;
-    QTableView *getTableView() override;
+    QTableView *getTableView() const override;
 
 signals:
     void entryActivated(Entry*);
@@ -65,10 +65,6 @@ private:
     QScopedPointer<Ui::ReportsWidgetHealthcheck> m_ui;
 
     bool m_healthCalculated = false;
-    // QScopedPointer<QStandardItemModel> m_referencesModel;
-    // QScopedPointer<QSortFilterProxyModel> m_modelProxy;
-    // QSharedPointer<Database> m_db;
-    // QList<QPair<Group*, Entry*>> m_rowToEntry;
 };
 
 #endif // KEEPASSXC_REPORTSWIDGETHEALTHCHECK_H
