@@ -1115,37 +1115,63 @@ void DatabaseWidget::cloneGroup()
 
 void DatabaseWidget::deleteGroup()
 {
-    Group* currentGroup = m_groupView->currentGroup();
-    Q_ASSERT(currentGroup && canDeleteCurrentGroup());
-    if (!currentGroup || !canDeleteCurrentGroup()) {
+    // Resolve groups from the selection model
+    QList<Group*> selectedGroups = m_groupView->selectedGroups();
+    if (selectedGroups.empty()) {
+        return;
+    }
+
+    Q_ASSERT(canDeleteCurrentGroup());
+
+    if (!canDeleteCurrentGroup()) {
         return;
     }
 
     auto* recycleBin = m_db->metadata()->recycleBin();
-    bool inRecycleBin = recycleBin && recycleBin->findGroupByUuid(currentGroup->uuid());
-    bool isRecycleBin = recycleBin && (currentGroup == recycleBin);
-    bool isRecycleBinSubgroup = recycleBin && currentGroup->findGroupByUuid(recycleBin->uuid());
+    bool inRecycleBin = false;
+    bool isRecycleBinSubgroup = false;
+    bool isRecycleBin = false;
+
+    for (auto group : selectedGroups) {
+        inRecycleBin |= recycleBin && recycleBin->findGroupByUuid(group->uuid());
+        isRecycleBin |= recycleBin && (group == recycleBin);
+        isRecycleBinSubgroup |= recycleBin && group->findGroupByUuid(recycleBin->uuid());
+    }
+
     if (inRecycleBin || isRecycleBin || isRecycleBinSubgroup || !m_db->metadata()->recycleBinEnabled()) {
+        QString msg;
+
+        if (selectedGroups.size() > 1) {
+            msg = tr("Do you really want to permanently delete %n groups?").arg(selectedGroups.size());
+        } else {
+            msg = tr("Do you really want to permanently delete \"%1\"?")
+                      .arg(selectedGroups.first()->name().toHtmlEscaped());
+        }
+
         auto result = MessageBox::question(
-            this,
-            tr("Confirm Delete Group"),
-            tr("Do you really want to permanently delete the group \"%1\"?").arg(currentGroup->name().toHtmlEscaped()),
-            MessageBox::Delete | MessageBox::Cancel,
-            MessageBox::Cancel);
+            this, tr("Confirm Delete Group"), msg, MessageBox::Delete | MessageBox::Cancel, MessageBox::Cancel);
 
         if (result == MessageBox::Delete) {
-            delete currentGroup;
+            for (auto& group : selectedGroups) {
+                delete group;
+            }
         }
     } else {
-        auto result = MessageBox::question(this,
-                                           tr("Confirm Recycle Group"),
-                                           tr("Do you really want to move the group "
-                                              "\"%1\" to the recycle bin?")
-                                               .arg(currentGroup->name().toHtmlEscaped()),
-                                           MessageBox::Move | MessageBox::Cancel,
-                                           MessageBox::Cancel);
+        QString msg;
+
+        if (selectedGroups.size() > 1) {
+            msg = tr("Do you really want to move %n groups to the recycle bin?").arg(selectedGroups.size());
+        } else {
+            msg = tr("Do you really want to move \"%1\" to the recycle bin?")
+                      .arg(selectedGroups.first()->name().toHtmlEscaped());
+        }
+
+        auto result = MessageBox::question(
+            this, tr("Confirm Recycle Group"), msg, MessageBox::Move | MessageBox::Cancel, MessageBox::Cancel);
         if (result == MessageBox::Move) {
-            m_db->recycleGroup(currentGroup);
+            for (auto group : selectedGroups) {
+                m_db->recycleGroup(group);
+            }
         }
     }
 }
@@ -1964,7 +1990,7 @@ bool DatabaseWidget::canCloneCurrentGroup() const
 
 bool DatabaseWidget::canDeleteCurrentGroup() const
 {
-    return currentGroup() != m_db->rootGroup();
+    return !m_groupView->selectedGroups().contains(m_db->rootGroup());
 }
 
 Group* DatabaseWidget::currentGroup() const
@@ -2347,6 +2373,11 @@ void DatabaseWidget::reloadDatabaseFile(bool triggeredBySave)
 int DatabaseWidget::numberOfSelectedEntries() const
 {
     return m_entryView->numberOfSelectedEntries();
+}
+
+int DatabaseWidget::numberOfSelectedGroups() const
+{
+    return m_groupView->numberOfSelectedGroups();
 }
 
 int DatabaseWidget::currentEntryIndex() const

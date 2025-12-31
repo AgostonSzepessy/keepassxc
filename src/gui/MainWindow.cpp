@@ -932,15 +932,16 @@ void MainWindow::updateMenuActionState()
     bool multiEntrySelected = (inDatabase && dbWidget->numberOfSelectedEntries() > 0);
 
     // Group State
-    bool groupSelected = (inDatabase && dbWidget->isGroupSelected());
-    bool groupHasChildren = (groupSelected && dbWidget->currentGroup()->hasChildren());
-    bool groupHasEntries = (groupSelected && !dbWidget->currentGroup()->entries().isEmpty());
+    bool singleGroupSelected = (inDatabase && dbWidget->numberOfSelectedGroups() == 1);
+    bool groupHasChildren = (singleGroupSelected && dbWidget->currentGroup()->hasChildren());
+    bool groupHasEntries = (singleGroupSelected && !dbWidget->currentGroup()->entries().isEmpty());
     bool inRecycleBin = (inDatabase && dbWidget->isRecycleBinSelected());
+    bool multiGroupSelected = (inDatabase && dbWidget->numberOfSelectedGroups() > 0);
 
     bool entryViewSorted = (inDatabase && dbWidget->isSorted());
     bool entryViewAtTop = (inDatabase && dbWidget->currentEntryIndex() == 0);
     bool entryViewAtBottom =
-        (groupSelected && dbWidget->currentEntryIndex() == dbWidget->currentGroup()->entries().size() - 1);
+        (singleGroupSelected && dbWidget->currentEntryIndex() == dbWidget->currentGroup()->entries().size() - 1);
 
     m_ui->actionEntryNew->setEnabled(inDatabase && !inRecycleBin);
     m_ui->actionEntryClone->setEnabled(singleEntrySelected && !inRecycleBin);
@@ -1025,10 +1026,10 @@ void MainWindow::updateMenuActionState()
     m_ui->actionClearSSHAgent->setEnabled(sshAgent()->isEnabled());
 #endif
 
-    m_ui->actionGroupNew->setEnabled(groupSelected && !inRecycleBin);
-    m_ui->actionGroupEdit->setEnabled(groupSelected);
-    m_ui->actionGroupClone->setEnabled(groupSelected && dbWidget->canCloneCurrentGroup());
-    m_ui->actionGroupDelete->setEnabled(groupSelected && dbWidget->canDeleteCurrentGroup());
+    m_ui->actionGroupNew->setEnabled(singleGroupSelected && !inRecycleBin);
+    m_ui->actionGroupEdit->setEnabled(singleGroupSelected);
+    m_ui->actionGroupClone->setEnabled(singleGroupSelected && dbWidget->canCloneCurrentGroup());
+    m_ui->actionGroupDelete->setEnabled(multiGroupSelected && dbWidget->canDeleteCurrentGroup());
     m_ui->actionGroupSortAsc->setVisible(groupHasChildren);
     m_ui->actionGroupSortAsc->setEnabled(groupHasChildren);
     m_ui->actionGroupSortDesc->setVisible(groupHasChildren);
@@ -1038,7 +1039,7 @@ void MainWindow::updateMenuActionState()
 #ifdef WITH_XC_NETWORKING
     m_ui->actionGroupDownloadFavicons->setVisible(!inRecycleBin);
 #endif
-    m_ui->actionGroupDownloadFavicons->setEnabled(groupSelected && groupHasEntries && !inRecycleBin);
+    m_ui->actionGroupDownloadFavicons->setEnabled(singleGroupSelected && groupHasEntries && !inRecycleBin);
 
     // Database Menu
     m_ui->actionDatabaseSave->setEnabled(databaseUnlocked && m_ui->tabWidget->canSave());

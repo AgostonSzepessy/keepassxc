@@ -134,7 +134,7 @@ QList<Group*> GroupView::selectedGroups() const
 {
     QList<Group*> list;
     for (auto row : selectionModel()->selectedRows()) {
-        list.append(m_model->entryFromIndex(row));
+        list.append(m_model->groupFromIndex(row));
     }
     return list;
 }

@@ -101,6 +101,7 @@ public:
     bool isRecycleBinSelected() const;
     bool hasRecycledSelectedEntries() const;
     int numberOfSelectedEntries() const;
+    int numberOfSelectedGroups() const;
     int currentEntryIndex() const;
 
     QString displayName() const;
