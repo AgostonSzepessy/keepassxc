@@ -62,6 +62,7 @@ GroupView::GroupView(Database* db, QWidget* parent)
     viewport()->setAcceptDrops(true);
     setDropIndicatorShown(true);
     setDefaultDropAction(Qt::MoveAction);
+    setSelectionMode(QAbstractItemView::ExtendedSelection);
 }
 
 void GroupView::selectPreviousGroup()
@@ -121,11 +122,21 @@ void GroupView::focusInEvent(QFocusEvent* event)
 
 Group* GroupView::currentGroup()
 {
-    if (currentIndex() == QModelIndex()) {
-        return nullptr;
+    QModelIndexList list = selectionModel()->selectedRows();
+    if (list.size() == 1) {
+        return m_model->groupFromIndex(list.first());
     } else {
-        return m_model->groupFromIndex(currentIndex());
+        return nullptr;
     }
+}
+
+QList<Group*> GroupView::selectedGroups() const
+{
+    QList<Group*> list;
+    for (auto row : selectionModel()->selectedRows()) {
+        list.append(m_model->entryFromIndex(row));
+    }
+    return list;
 }
 
 void GroupView::expandedChanged(const QModelIndex& index)
@@ -192,4 +203,9 @@ void GroupView::modelReset()
 {
     recInitExpanded(m_model->groupFromIndex(m_model->index(0, 0)));
     setCurrentIndex(m_model->index(0, 0));
+}
+
+int GroupView::numberOfSelectedGroups() const
+{
+    return selectionModel()->selectedRows().size();
 }

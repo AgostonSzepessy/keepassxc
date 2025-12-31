@@ -33,9 +33,11 @@ public:
     void changeDatabase(const QSharedPointer<Database>& newDb);
     void setModel(QAbstractItemModel* model) override;
     Group* currentGroup();
+    QList<Group*> selectedGroups() const;
     void setCurrentGroup(Group* group);
     void expandGroup(Group* group, bool expand = true);
     void sortGroups(bool reverse = false);
+    int numberOfSelectedGroups() const;
 
 signals:
     void groupSelectionChanged();
